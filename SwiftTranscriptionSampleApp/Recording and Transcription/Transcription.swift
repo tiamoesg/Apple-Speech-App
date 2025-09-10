@@ -10,7 +10,7 @@ import Speech
 import SwiftUI
 
 @Observable
-final class SpokenWordTranscriber: Sendable {
+final class SpokenWordTranscriber {
     private var inputSequence: AsyncStream<AnalyzerInput>?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var transcriber: SpeechTranscriber?
@@ -134,10 +134,10 @@ extension SpokenWordTranscriber {
         }
     }
     
-    func deallocate() async {
-        let allocated = await AssetInventory.allocatedLocales
-        for locale in allocated {
-            await AssetInventory.deallocate(locale: locale)
+    func releaseLocales() async {
+        let reserved = await AssetInventory.reservedLocales
+        for locale in reserved {
+            await AssetInventory.release(reservedLocale: locale)
         }
     }
 }

@@ -1,3 +1,4 @@
+#if canImport(MEGASdk)
 import Foundation
 import MEGASdk
 
@@ -225,3 +226,98 @@ final class MegaStorageService: NSObject {
 }
 
 extension MegaStorageService: @unchecked Sendable {}
+#else
+import Foundation
+
+typealias MEGAHandle = UInt64
+
+@MainActor
+final class MegaStorageService: NSObject {
+    struct Configuration {
+        let appKey: String
+        let userAgent: String
+        let email: String
+        let password: String
+        let parentHandle: MEGAHandle?
+
+        init(appKey: String,
+             userAgent: String,
+             email: String,
+             password: String,
+             parentHandle: MEGAHandle? = nil) {
+            self.appKey = appKey
+            self.userAgent = userAgent
+            self.email = email
+            self.password = password
+            self.parentHandle = parentHandle
+        }
+
+        init?(bundle: Bundle = .main) {
+            guard let appKey = bundle.object(forInfoDictionaryKey: "MEGAAppKey") as? String,
+                  let userAgent = bundle.object(forInfoDictionaryKey: "MEGAUserAgent") as? String,
+                  let email = bundle.object(forInfoDictionaryKey: "MEGAEmail") as? String,
+                  let password = bundle.object(forInfoDictionaryKey: "MEGAPassword") as? String else {
+                return nil
+            }
+
+            let parentHandleString = bundle.object(forInfoDictionaryKey: "MEGAParentHandle") as? String
+            let parentHandle = parentHandleString.flatMap { UInt64($0) }
+
+            self.init(appKey: appKey,
+                      userAgent: userAgent,
+                      email: email,
+                      password: password,
+                      parentHandle: parentHandle)
+        }
+
+        init?(bundle: Bundle = .main, email: String, password: String) {
+            guard let appKey = bundle.object(forInfoDictionaryKey: "MEGAAppKey") as? String,
+                  let userAgent = bundle.object(forInfoDictionaryKey: "MEGAUserAgent") as? String else {
+                return nil
+            }
+
+            let parentHandleString = bundle.object(forInfoDictionaryKey: "MEGAParentHandle") as? String
+            let parentHandle = parentHandleString.flatMap { UInt64($0) }
+
+            self.init(appKey: appKey,
+                      userAgent: userAgent,
+                      email: email,
+                      password: password,
+                      parentHandle: parentHandle)
+        }
+    }
+
+    struct UploadResult {
+        let handle: MEGAHandle
+        let size: Int64
+    }
+
+    enum ServiceError: Error, LocalizedError {
+        case sdkUnavailable
+
+        var errorDescription: String? {
+            "MEGA SDK is unavailable in this build."
+        }
+    }
+
+    init(configuration: Configuration) {
+        fatalError("MegaStorageService requires the MEGASdk dependency to be available at runtime.")
+    }
+
+    static func makeDefault(bundle: Bundle = .main) -> MegaStorageService? {
+        nil
+    }
+
+    func authenticateIfNeeded() async throws {
+        throw ServiceError.sdkUnavailable
+    }
+
+    func uploadAudio(from fileURL: URL, fileName: String? = nil) async throws -> UploadResult {
+        throw ServiceError.sdkUnavailable
+    }
+
+    func streamingURL(for handle: MEGAHandle) async throws -> URL {
+        throw ServiceError.sdkUnavailable
+    }
+}
+#endif

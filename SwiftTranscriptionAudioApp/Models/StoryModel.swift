@@ -150,33 +150,9 @@ final class StoryModel: ObservableObject {
         objectWillChange.send()
         recordings[index].isOffloading = true
         offloadTasks[recording.id]?.cancel()
-        offloadTasks[recording.id] = Task { [weak self] @MainActor in
+        offloadTasks[recording.id] = Task { [weak self] in
             guard let self else { return }
-            defer { self.offloadTasks[recording.id] = nil }
-
-            do {
-                let result = try await megaService.uploadAudio(from: fileURL)
-                guard !Task.isCancelled else { return }
-                guard let currentIndex = self.recordings.firstIndex(where: { $0.id == recording.id }) else { return }
-                let currentRecording = self.recordings[currentIndex]
-                self.objectWillChange.send()
-                self.store.deleteAudio(for: currentRecording)
-                currentRecording.fileURL = nil
-                currentRecording.isOffloaded = true
-                currentRecording.megaNodeHandle = result.handle
-                currentRecording.isOffloading = false
-                currentRecording.updatedAt = Date()
-                self.store.save(self.recordings)
-            } catch {
-                if let currentIndex = self.recordings.firstIndex(where: { $0.id == recording.id }) {
-                    self.objectWillChange.send()
-                    self.recordings[currentIndex].isOffloading = false
-                }
-
-                if !Task.isCancelled {
-                    print("Failed to offload recording: \(error)")
-                }
-            }
+            await self.performOffload(for: recording, fileURL: fileURL, megaService: megaService)
         }
     }
 
@@ -186,6 +162,36 @@ final class StoryModel: ObservableObject {
             stopPlayback()
         } else {
             startPlayback(for: recording)
+        }
+    }
+
+    private func performOffload(for recording: Recording,
+                                fileURL: URL,
+                                megaService: MegaStorageService) async {
+        defer { offloadTasks[recording.id] = nil }
+
+        do {
+            let result = try await megaService.uploadAudio(from: fileURL)
+            guard !Task.isCancelled else { return }
+            guard let currentIndex = recordings.firstIndex(where: { $0.id == recording.id }) else { return }
+            let currentRecording = recordings[currentIndex]
+            objectWillChange.send()
+            store.deleteAudio(for: currentRecording)
+            currentRecording.fileURL = nil
+            currentRecording.isOffloaded = true
+            currentRecording.megaNodeHandle = result.handle
+            currentRecording.isOffloading = false
+            currentRecording.updatedAt = Date()
+            store.save(recordings)
+        } catch {
+            if let currentIndex = recordings.firstIndex(where: { $0.id == recording.id }) {
+                objectWillChange.send()
+                recordings[currentIndex].isOffloading = false
+            }
+
+            if !Task.isCancelled {
+                print("Failed to offload recording: \(error)")
+            }
         }
     }
 
@@ -245,17 +251,24 @@ final class StoryModel: ObservableObject {
               let handle = recording.megaNodeHandle else { return }
 
         remotePlaybackTask?.cancel()
-        remotePlaybackTask = Task { [weak self] @MainActor in
+        remotePlaybackTask = Task { [weak self] in
             guard let self else { return }
-            defer { self.remotePlaybackTask = nil }
+            await self.performRemotePlayback(for: recording, handle: handle, megaService: megaService)
+        }
+    }
 
-            do {
-                let url = try await megaService.streamingURL(for: handle)
-                self.beginRemotePlayback(with: url, for: recording)
-            } catch {
-                if !Task.isCancelled {
-                    print("Failed to start remote playback: \(error)")
-                }
+    private func performRemotePlayback(for recording: Recording,
+                                       handle: UInt64,
+                                       megaService: MegaStorageService) async {
+        defer { remotePlaybackTask = nil }
+
+        do {
+            let url = try await megaService.streamingURL(for: handle)
+            guard !Task.isCancelled else { return }
+            beginRemotePlayback(with: url, for: recording)
+        } catch {
+            if !Task.isCancelled {
+                print("Failed to start remote playback: \(error)")
             }
         }
     }

@@ -11,10 +11,10 @@ import Speech
 import AVFoundation
 
 struct TranscriptView: View {
-    @Binding var story: Story
+    @Binding var audioEntry: AudioEntry
     @State var isRecording = false
     @State var isPlaying = false
-    
+
     @State var recorder: Recorder
     @State var speechTranscriber: SpokenWordTranscriber
     
@@ -24,17 +24,17 @@ struct TranscriptView: View {
     
     @State var timer: Timer?
     
-    init(story: Binding<Story>) {
-        self._story = story
-        let transcriber = SpokenWordTranscriber(story: story)
-        recorder = Recorder(transcriber: transcriber, story: story)
+    init(audioEntry: Binding<AudioEntry>) {
+        self._audioEntry = audioEntry
+        let transcriber = SpokenWordTranscriber(audioEntry: audioEntry)
+        recorder = Recorder(transcriber: transcriber, audioEntry: audioEntry)
         speechTranscriber = transcriber
     }
-    
+
     var body: some View {
         VStack(alignment: .leading) {
             Group {
-                if !story.isDone {
+                if !audioEntry.isDone {
                     liveRecordingView
                 } else {
                     playbackView
@@ -43,7 +43,7 @@ struct TranscriptView: View {
             Spacer()
         }
         .padding(20)
-        .navigationTitle(story.title)
+        .navigationTitle(audioEntry.title)
         .toolbar {
             ToolbarItem {
                 Button {
@@ -55,18 +55,18 @@ struct TranscriptView: View {
                         Label("Record", systemImage: "record.circle").tint(.red)
                     }
                 }
-                .disabled(story.isDone)
+                .disabled(audioEntry.isDone)
             }
-            
+
             ToolbarItem {
                 Button {
                     handlePlayButtonTap()
                 } label: {
                     Label("Play", systemImage: isPlaying ? "pause.fill" : "play").foregroundStyle(.blue).font(.title)
                 }
-                .disabled(!story.isDone)
+                .disabled(!audioEntry.isDone)
             }
-            
+
             ToolbarItem {
                 ProgressView(value: downloadProgress, total: 100)
             }
@@ -92,7 +92,7 @@ struct TranscriptView: View {
             handlePlayback()
         }
     }
-    
+
     @ViewBuilder
     var liveRecordingView: some View {
         Text(speechTranscriber.finalizedTranscript + speechTranscriber.volatileTranscript)
@@ -102,7 +102,7 @@ struct TranscriptView: View {
     
     @ViewBuilder
     var playbackView: some View {
-        textScrollView(attributedString: story.storyBrokenUpByLines())
+        textScrollView(attributedString: audioEntry.audioTranscriptBrokenUpByLines())
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

@@ -11,33 +11,38 @@ import Speech
 import AVFoundation
 
 struct TranscriptView: View {
-    @Binding var audioEntry: AudioEntry
-    @State var isRecording = false
-    @State var isPlaying = false
+    @Binding var recording: Recording
+    @State private var isRecording = false
+    @State private var isPlaying = false
 
-    @State var recorder: Recorder
-    @State var speechTranscriber: SpokenWordTranscriber
+    @State private var recorder: Recorder
+    @State private var speechTranscriber: SpokenWordTranscriber
 
-    @State var downloadProgress = 0.0
+    @State private var downloadProgress = 0.0
+    @State private var currentPlaybackTime = 0.0
+    @State private var timer: Timer?
 
-    @State var currentPlaybackTime = 0.0
-
-    @State var timer: Timer?
-
-    @EnvironmentObject var recordingsViewModel: RecordingsViewModel
+    @ObservedObject var storyModel: StoryModel
     @Environment(\.dismiss) private var dismiss
-    
-    init(audioEntry: Binding<AudioEntry>) {
-        self._audioEntry = audioEntry
-        let transcriber = SpokenWordTranscriber(audioEntry: audioEntry)
-        recorder = Recorder(transcriber: transcriber, audioEntry: audioEntry)
-        speechTranscriber = transcriber
+
+    init(recording: Binding<Recording>, storyModel: StoryModel) {
+        self._recording = recording
+        self.storyModel = storyModel
+        let transcriber = SpokenWordTranscriber(recording: recording)
+        let destination = storyModel.destinationURL(for: recording.wrappedValue)
+        let recorder = Recorder(transcriber: transcriber,
+                                recording: recording,
+                                destinationURL: destination) { url, duration in
+            storyModel.finalizeRecording(recording.wrappedValue, from: url, duration: duration)
+        }
+        _recorder = State(initialValue: recorder)
+        _speechTranscriber = State(initialValue: transcriber)
     }
 
     var body: some View {
         VStack(alignment: .leading) {
             Group {
-                if !audioEntry.isDone {
+                if !recording.isComplete {
                     liveRecordingView
                 } else {
                     playbackView
@@ -46,28 +51,26 @@ struct TranscriptView: View {
             Spacer()
         }
         .padding(20)
-        .navigationTitle(audioEntry.title)
+        .navigationTitle(recording.title)
         .toolbar {
             ToolbarItem {
-                Button {
-                    handleRecordingButtonTap()
-                } label: {
+                Button { handleRecordingButtonTap() } label: {
                     if isRecording {
                         Label("Stop", systemImage: "pause.fill").tint(.red)
                     } else {
                         Label("Record", systemImage: "record.circle").tint(.red)
                     }
                 }
-                .disabled(audioEntry.isDone)
+                .disabled(recording.isComplete)
             }
 
             ToolbarItem {
-                Button {
-                    handlePlayButtonTap()
-                } label: {
-                    Label("Play", systemImage: isPlaying ? "pause.fill" : "play").foregroundStyle(.blue).font(.title)
+                Button { handlePlayButtonTap() } label: {
+                    Label("Play", systemImage: isPlaying ? "pause.fill" : "play")
+                        .foregroundStyle(.blue)
+                        .font(.title)
                 }
-                .disabled(!audioEntry.isDone)
+                .disabled(!recording.isComplete)
             }
 
             ToolbarItem {
@@ -76,14 +79,14 @@ struct TranscriptView: View {
 
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") {
-                    recordingsViewModel.activeSheet = nil
+                    storyModel.activeRecording = nil
                     dismiss()
                 }
             }
         }
         .onChange(of: isRecording) { oldValue, newValue in
             guard newValue != oldValue else { return }
-            if newValue == true {
+            if newValue {
                 Task {
                     do {
                         try await recorder.record()
@@ -96,7 +99,7 @@ struct TranscriptView: View {
                     do {
                         try await recorder.stopRecording()
                         await MainActor.run {
-                            recordingsViewModel.persist(audioEntry)
+                            storyModel.persist(recording)
                         }
                     } catch {
                         print("could not stop recording: \(error)")
@@ -104,27 +107,27 @@ struct TranscriptView: View {
                 }
             }
         }
-        .onChange(of: isPlaying) {
+        .onChange(of: isPlaying) { _ in
             handlePlayback()
         }
-        .onChange(of: audioEntry.title) { _, _ in
-            recordingsViewModel.persist(audioEntry)
+        .onChange(of: recording.title) { _, _ in
+            storyModel.persist(recording)
         }
         .onDisappear {
-            recordingsViewModel.persist(audioEntry)
+            storyModel.persist(recording)
         }
     }
 
     @ViewBuilder
-    var liveRecordingView: some View {
+    private var liveRecordingView: some View {
         Text(speechTranscriber.finalizedTranscript + speechTranscriber.volatileTranscript)
             .font(.title)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     @ViewBuilder
-    var playbackView: some View {
-        textScrollView(attributedString: audioEntry.audioTranscriptBrokenUpByLines())
+    private var playbackView: some View {
+        textScrollView(attributedString: recording.transcriptSplitBySentences())
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

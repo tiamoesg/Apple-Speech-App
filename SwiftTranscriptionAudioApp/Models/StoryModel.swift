@@ -20,11 +20,20 @@ final class StoryModel: ObservableObject {
     private(set) var currentlyPlayingRecordingID: UUID?
 
     init(store: RecordingStore = RecordingStore(),
-         megaService: MegaStorageService? = MegaStorageService.makeDefault(),
-         knowledgeBaseService: KnowledgeBaseService? = KnowledgeBaseService.makeDefault()) {
+         megaService: MegaStorageService? = nil,
+         knowledgeBaseService: KnowledgeBaseService? = nil) {
         self.store = store
-        self.megaService = megaService
-        self.knowledgeBaseService = knowledgeBaseService
+        if let megaService {
+            self.megaService = megaService
+        } else {
+            self.megaService = MegaStorageService.makeDefault()
+        }
+
+        if let knowledgeBaseService {
+            self.knowledgeBaseService = knowledgeBaseService
+        } else {
+            self.knowledgeBaseService = KnowledgeBaseService.makeDefault()
+        }
         self.authenticatedUserID = nil
         loadPersistedRecordings()
     }

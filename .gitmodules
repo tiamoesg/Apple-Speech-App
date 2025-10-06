@@ -1,0 +1,3 @@
+[submodule "MEGA/ios"]
+	path = MEGA/ios
+	url = https://github.com/meganz/ios.git

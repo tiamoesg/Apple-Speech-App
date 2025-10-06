@@ -25,7 +25,7 @@ struct RecordingListView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
-                    .disabled(recording.isOffloaded)
+                    .disabled(recording.isOffloaded || recording.isOffloading)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
@@ -34,7 +34,7 @@ struct RecordingListView: View {
                         Label("Offload", systemImage: "externaldrive.badge.minus")
                     }
                     .tint(.indigo)
-                    .disabled(recording.fileURL == nil)
+                    .disabled(recording.fileURL == nil || !viewModel.canOffloadRemotely || recording.isOffloading)
                 }
             }
         }

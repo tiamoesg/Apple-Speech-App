@@ -15,6 +15,7 @@ final class Recording: Identifiable, Codable {
         case isOffloaded
         case duration
         case fileSize
+        case megaNodeHandle
     }
 
     let id: UUID
@@ -25,9 +26,11 @@ final class Recording: Identifiable, Codable {
     var createdAt: Date
     var updatedAt: Date
     var isOffloaded: Bool
+    var megaNodeHandle: UInt64?
     var duration: TimeInterval
     var fileSize: Int64
     var isPlaying: Bool = false
+    var isOffloading: Bool = false
 
     init(id: UUID = UUID(),
          title: String,
@@ -37,6 +40,7 @@ final class Recording: Identifiable, Codable {
          createdAt: Date = Date(),
          updatedAt: Date = Date(),
          isOffloaded: Bool = false,
+         megaNodeHandle: UInt64? = nil,
          duration: TimeInterval = 0,
          fileSize: Int64 = 0) {
         self.id = id
@@ -47,6 +51,7 @@ final class Recording: Identifiable, Codable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.isOffloaded = isOffloaded
+        self.megaNodeHandle = megaNodeHandle
         self.duration = duration
         self.fileSize = fileSize
     }
@@ -68,6 +73,7 @@ final class Recording: Identifiable, Codable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
         isOffloaded = try container.decode(Bool.self, forKey: .isOffloaded)
+        megaNodeHandle = try container.decodeIfPresent(UInt64.self, forKey: .megaNodeHandle)
         duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0
         fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize) ?? 0
     }
@@ -84,6 +90,7 @@ final class Recording: Identifiable, Codable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(isOffloaded, forKey: .isOffloaded)
+        try container.encodeIfPresent(megaNodeHandle, forKey: .megaNodeHandle)
         try container.encode(duration, forKey: .duration)
         try container.encode(fileSize, forKey: .fileSize)
     }
@@ -164,5 +171,13 @@ extension Recording {
         formatter.allowedUnits = [.useKB, .useMB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: fileSize)
+    }
+
+    var canStreamRemotely: Bool {
+        isOffloaded && megaNodeHandle != nil
+    }
+
+    var isPlayable: Bool {
+        (fileURL != nil) || canStreamRemotely
     }
 }

@@ -66,11 +66,12 @@ struct TranscriptView: View {
 
             ToolbarItem {
                 Button { handlePlayButtonTap() } label: {
-                    Label("Play", systemImage: isPlaying ? "pause.fill" : "play")
+                    let isCurrentlyPlaying = recording.isOffloaded ? recording.isPlaying : isPlaying
+                    Label("Play", systemImage: isCurrentlyPlaying ? "pause.fill" : "play")
                         .foregroundStyle(.blue)
                         .font(.title)
                 }
-                .disabled(!recording.isComplete)
+                .disabled(!recording.isComplete || !recording.isPlayable || recording.isOffloading)
             }
 
             ToolbarItem {
@@ -108,7 +109,12 @@ struct TranscriptView: View {
             }
         }
         .onChange(of: isPlaying) { _ in
+            guard !recording.isOffloaded else { return }
             handlePlayback()
+        }
+        .onChange(of: recording.isPlaying) { _, newValue in
+            guard recording.isOffloaded else { return }
+            isPlaying = newValue
         }
         .onChange(of: recording.title) { _, _ in
             storyModel.persist(recording)

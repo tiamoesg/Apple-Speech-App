@@ -99,6 +99,10 @@ extension AVAudioPlayerNode {
 extension TranscriptView {
 
     func handlePlayback() {
+        guard !recording.isOffloaded else {
+            return
+        }
+
         guard recording.fileURL != nil else {
             return
         }
@@ -118,9 +122,13 @@ extension TranscriptView {
     func handleRecordingButtonTap() {
         isRecording.toggle()
     }
-    
+
     func handlePlayButtonTap() {
-        isPlaying.toggle()
+        if recording.isOffloaded {
+            storyModel.togglePlayback(for: recording)
+        } else {
+            isPlaying.toggle()
+        }
     }
     
     @ViewBuilder func textScrollView(attributedString: AttributedString) -> some View {

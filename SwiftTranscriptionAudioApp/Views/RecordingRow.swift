@@ -22,7 +22,11 @@ struct RecordingRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    if recording.isOffloaded {
+                    if recording.isOffloading {
+                        Label("Uploading…", systemImage: "arrow.up.circle")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    } else if recording.isOffloaded {
                         Label("Offloaded", systemImage: "icloud.slash")
                             .font(.caption)
                             .foregroundStyle(.orange)
@@ -46,7 +50,7 @@ struct RecordingRow: View {
                     .font(.title3)
             }
             .buttonStyle(.borderless)
-            .disabled(recording.fileURL == nil)
+            .disabled(!recording.isPlayable || recording.isOffloading)
             .accessibilityLabel(recording.isPlaying ? "Stop playback" : "Play recording")
         }
         .padding(.vertical, 8)

@@ -43,6 +43,22 @@ final class MegaStorageService: NSObject {
                       password: password,
                       parentHandle: parentHandle)
         }
+
+        init?(bundle: Bundle = .main, email: String, password: String) {
+            guard let appKey = bundle.object(forInfoDictionaryKey: "MEGAAppKey") as? String,
+                  let userAgent = bundle.object(forInfoDictionaryKey: "MEGAUserAgent") as? String else {
+                return nil
+            }
+
+            let parentHandleString = bundle.object(forInfoDictionaryKey: "MEGAParentHandle") as? String
+            let parentHandle = parentHandleString.flatMap { UInt64($0) }
+
+            self.init(appKey: appKey,
+                      userAgent: userAgent,
+                      email: email,
+                      password: password,
+                      parentHandle: parentHandle)
+        }
     }
 
     struct UploadResult {

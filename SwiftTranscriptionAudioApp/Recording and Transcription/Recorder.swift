@@ -108,7 +108,7 @@ class Recorder {
     }
 
     func playRecording() {
-        if file == nil, let url = story.url.wrappedValue {
+        if file == nil, let url = audioEntry.url.wrappedValue {
             prepareForPlayback(with: url)
         }
 

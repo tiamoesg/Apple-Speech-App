@@ -41,7 +41,7 @@ class AudioEntry: Identifiable {
     func suggestedTitle() async throws -> String? {
         guard SystemLanguageModel.default.isAvailable else { return nil }
         let session = LanguageModelSession(model: SystemLanguageModel.default)
-        let answer = try await session.respond(to: "Here is a children's story. Can you please return your very best suggested title for it, with no other text? The title should be descriptive of the story and include the main character's name. Story: \(text.characters)")
+        let answer = try await session.respond(to: "Here is an audio transcript. Can you please suggest a concise, descriptive title for it, with no other text? The title should highlight the key subject. Transcript: \(text.characters)")
         return answer.content.trimmingCharacters(in: .punctuationCharacters)
     }
 }
@@ -90,7 +90,7 @@ extension AudioEntry {
 
 // MARK: - Persistence
 
-extension Story: Codable {
+extension AudioEntry: Codable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
@@ -136,7 +136,7 @@ extension Story: Codable {
     }
 }
 
-extension Story {
+extension AudioEntry {
     private static let timestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -162,6 +162,6 @@ extension Story {
     }
 
     var formattedTimestamp: String {
-        Story.timestampFormatter.string(from: createdAt)
+        AudioEntry.timestampFormatter.string(from: createdAt)
     }
 }

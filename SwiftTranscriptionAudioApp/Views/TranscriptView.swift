@@ -96,7 +96,7 @@ struct TranscriptView: View {
                     do {
                         try await recorder.stopRecording()
                         await MainActor.run {
-                            recordingsViewModel.persist(story)
+                            recordingsViewModel.persist(audioEntry)
                         }
                     } catch {
                         print("could not stop recording: \(error)")
@@ -107,11 +107,11 @@ struct TranscriptView: View {
         .onChange(of: isPlaying) {
             handlePlayback()
         }
-        .onChange(of: story.title) { _, _ in
-            recordingsViewModel.persist(story)
+        .onChange(of: audioEntry.title) { _, _ in
+            recordingsViewModel.persist(audioEntry)
         }
         .onDisappear {
-            recordingsViewModel.persist(story)
+            recordingsViewModel.persist(audioEntry)
         }
     }
 

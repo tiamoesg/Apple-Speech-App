@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct SwiftTranscriptionSampleApp: App {
+struct SwiftTranscriptionAudioApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

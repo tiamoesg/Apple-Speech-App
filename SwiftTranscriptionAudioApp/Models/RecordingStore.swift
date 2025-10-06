@@ -71,6 +71,26 @@ struct RecordingStore {
         RecordingStore.audioURL(for: id, fileManager: fileManager)
     }
 
+    func reset() {
+        do {
+            if fileManager.fileExists(atPath: storeURL.path) {
+                try fileManager.removeItem(at: storeURL)
+            }
+        } catch {
+            print("Failed to clear recordings store: \(error)")
+        }
+
+        let directory = RecordingStore.recordingsDirectory(fileManager: fileManager)
+        if fileManager.fileExists(atPath: directory.path) {
+            do {
+                try fileManager.removeItem(at: directory)
+            } catch {
+                print("Failed to remove recordings directory: \(error)")
+            }
+            try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+    }
+
     private static func baseDirectory(fileManager: FileManager = .default) -> URL {
         #if os(macOS)
         if let applicationSupport = try? fileManager.url(for: .applicationSupportDirectory,

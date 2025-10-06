@@ -10,6 +10,7 @@ final class StoryModel: ObservableObject {
     private let store: RecordingStore
     private let megaService: MegaStorageService?
     let knowledgeBaseService: KnowledgeBaseService?
+    private(set) var authenticatedUserID: String?
     private var offloadTasks: [UUID: Task<Void, Never>] = [:]
     private var playbackRecorder: Recorder?
     private var playbackTranscriber: SpokenWordTranscriber?
@@ -24,6 +25,32 @@ final class StoryModel: ObservableObject {
         self.store = store
         self.megaService = megaService
         self.knowledgeBaseService = knowledgeBaseService
+        self.authenticatedUserID = nil
+        loadPersistedRecordings()
+    }
+
+    init(session: AuthSession,
+         store: RecordingStore = RecordingStore()) {
+        self.store = store
+        if let baseURL = session.knowledgeBaseBaseURL {
+            let configuration = KnowledgeBaseService.Configuration(baseURL: baseURL,
+                                                                   apiKey: session.knowledgeBaseAPIKey,
+                                                                   userID: session.knowledgeBaseUserID)
+            self.knowledgeBaseService = KnowledgeBaseService(configuration: configuration)
+        } else {
+            self.knowledgeBaseService = nil
+        }
+
+        if let email = session.megaEmail,
+           let password = session.megaPassword,
+           let configuration = MegaStorageService.Configuration(bundle: .main,
+                                                                email: email,
+                                                                password: password) {
+            self.megaService = MegaStorageService(configuration: configuration)
+        } else {
+            self.megaService = nil
+        }
+        self.authenticatedUserID = session.knowledgeBaseUserID
         loadPersistedRecordings()
     }
 
@@ -262,5 +289,15 @@ final class StoryModel: ObservableObject {
             print("Failed to determine file size: \(error)")
         }
         return 0
+    }
+
+    func reset() {
+        offloadTasks.values.forEach { $0.cancel() }
+        offloadTasks.removeAll()
+        stopPlayback()
+        recordings = []
+        activeRecording = nil
+        authenticatedUserID = nil
+        store.reset()
     }
 }

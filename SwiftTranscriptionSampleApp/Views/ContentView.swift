@@ -8,33 +8,41 @@ The app's main view.
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = RecordingsViewModel()
-
+    @State var selectedAudioEntry: AudioEntry?
+    @State var activeAudioEntry: AudioEntry = AudioEntry.blankAudioEntry()
+    
     var body: some View {
-        NavigationStack {
-            RecordingListView(viewModel: viewModel)
-                .navigationTitle("Recordings")
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            _ = viewModel.createStory()
-                        } label: {
-                            Label("New Recording", systemImage: "plus")
-                        }
+        NavigationSplitView {
+            List(audioEntries, selection: $selectedAudioEntry) { audioEntry in
+                NavigationLink(value: audioEntry) {
+                    Text(audioEntry.title)
+                }
+            }
+
+            .navigationTitle("AUDIO Sessions")
+
+            .toolbar {
+                ToolbarItem {
+                    Button {
+                        audioEntries.append(AudioEntry.blankAudioEntry())
+                    } label: {
+                        Label("New AUDIO", systemImage: "plus")
                     }
                 }
-        }
-        .environmentObject(viewModel)
-        .sheet(item: $viewModel.activeSheet) { story in
-            if let binding = viewModel.binding(for: story) {
-                NavigationStack {
-                    TranscriptView(story: binding)
-                }
-                .environmentObject(viewModel)
+            }
+        } detail: {
+            if selectedAudioEntry != nil {
+                TranscriptView(audioEntry: $activeAudioEntry)
             } else {
-                Text("Recording unavailable")
-                    .padding()
+                Text("Select an item")
+            }
+        }
+        .onChange(of: selectedAudioEntry) {
+            if let selectedAudioEntry {
+                activeAudioEntry = selectedAudioEntry
             }
         }
     }
+
+    @State var audioEntries: [AudioEntry] = []
 }

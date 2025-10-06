@@ -2,7 +2,7 @@
 See the LICENSE.txt file for this sample’s licensing information.
 
 Abstract:
-Story data model.
+AUDIO entry data model.
 */
 
 import Foundation
@@ -10,7 +10,7 @@ import AVFoundation
 import FoundationModels
 
 @Observable
-class Story: Identifiable {
+class AudioEntry: Identifiable {
     typealias StartTime = CMTime
 
     let id: UUID
@@ -46,12 +46,12 @@ class Story: Identifiable {
     }
 }
 
-extension Story {
-    static func blank() -> Story {
-        return .init(title: "New Story", text: AttributedString(""), createdAt: Date())
+extension AudioEntry {
+    static func blankAudioEntry() -> AudioEntry {
+        return .init(title: "New AUDIO", text: AttributedString(""))
     }
-    
-    func storyBrokenUpByLines() -> AttributedString {
+
+    func audioTranscriptBrokenUpByLines() -> AttributedString {
         print(String(text.characters))
         if url == nil {
             print("url was nil")

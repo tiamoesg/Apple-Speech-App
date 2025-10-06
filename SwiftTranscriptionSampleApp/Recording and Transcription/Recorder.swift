@@ -15,23 +15,22 @@ class Recorder {
     private let transcriber: SpokenWordTranscriber
     var playerNode: AVAudioPlayerNode?
     
-    var story: Binding<Story>
+    var audioEntry: Binding<AudioEntry>
     
     var file: AVAudioFile?
     private let url: URL
 
-    init(transcriber: SpokenWordTranscriber, story: Binding<Story>) {
+    init(transcriber: SpokenWordTranscriber, audioEntry: Binding<AudioEntry>) {
         audioEngine = AVAudioEngine()
         self.transcriber = transcriber
-        self.story = story
+        self.audioEntry = audioEntry
         self.url = FileManager.default.temporaryDirectory
             .appending(component: UUID().uuidString)
             .appendingPathExtension(for: .wav)
     }
-    
+
     func record() async throws {
-        self.story.url.wrappedValue = url
-        self.story.isOffloaded.wrappedValue = false
+        self.audioEntry.url.wrappedValue = url
         guard await isAuthorized() else {
             print("user denied mic permission")
             return
@@ -48,12 +47,12 @@ class Recorder {
     
     func stopRecording() async throws {
         audioEngine.stop()
-        story.isDone.wrappedValue = true
+        audioEntry.isDone.wrappedValue = true
 
         try await transcriber.finishTranscribing()
 
         Task {
-            self.story.title.wrappedValue = try await story.wrappedValue.suggestedTitle() ?? story.title.wrappedValue
+            self.audioEntry.title.wrappedValue = try await audioEntry.wrappedValue.suggestedTitle() ?? audioEntry.title.wrappedValue
         }
 
     }

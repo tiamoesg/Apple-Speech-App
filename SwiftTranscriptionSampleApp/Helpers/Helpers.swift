@@ -9,13 +9,13 @@ import Foundation
 import AVFoundation
 import SwiftUI
 
-extension Story: Equatable {
-    static func == (lhs: Story, rhs: Story) -> Bool {
+extension AudioEntry: Equatable {
+    static func == (lhs: AudioEntry, rhs: AudioEntry) -> Bool {
         lhs.id == rhs.id
     }
 }
 
-extension Story: Hashable {
+extension AudioEntry: Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -97,9 +97,9 @@ extension AVAudioPlayerNode {
 }
 
 extension TranscriptView {
-    
+
     func handlePlayback() {
-        guard story.url != nil else {
+        guard audioEntry.url != nil else {
             return
         }
         
@@ -114,7 +114,7 @@ extension TranscriptView {
             timer = nil
         }
     }
-    
+
     func handleRecordingButtonTap() {
         isRecording.toggle()
     }

@@ -6,45 +6,35 @@ The app's main view.
 */
 
 import SwiftUI
-import SwiftData
-import Speech
 
 struct ContentView: View {
-    @State var selection: Story?
-    @State var currentStory: Story = Story.blank()
-    
+    @StateObject private var viewModel = RecordingsViewModel()
+
     var body: some View {
-        NavigationSplitView {
-            List(stories, selection: $selection) { story in
-                NavigationLink(value: story) {
-                    Text(story.title)
-                }
-            }
-            
-            .navigationTitle("Stories")
-            
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        stories.append(Story.blank())
-                    } label: {
-                        Label("Add Item", systemImage: "plus")
+        NavigationStack {
+            RecordingListView(viewModel: viewModel)
+                .navigationTitle("Recordings")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            _ = viewModel.createStory()
+                        } label: {
+                            Label("New Recording", systemImage: "plus")
+                        }
                     }
                 }
-            }
-        } detail: {
-            if selection != nil {
-                TranscriptView(story: $currentStory)
-            } else {
-                Text("Select an item")
-            }
         }
-        .onChange(of: selection) {
-            if let selection {
-                currentStory = selection
+        .environmentObject(viewModel)
+        .sheet(item: $viewModel.activeSheet) { story in
+            if let binding = viewModel.binding(for: story) {
+                NavigationStack {
+                    TranscriptView(story: binding)
+                }
+                .environmentObject(viewModel)
+            } else {
+                Text("Recording unavailable")
+                    .padding()
             }
         }
     }
-    
-    @State var stories: [Story] = []
 }

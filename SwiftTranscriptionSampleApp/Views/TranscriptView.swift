@@ -14,15 +14,18 @@ struct TranscriptView: View {
     @Binding var story: Story
     @State var isRecording = false
     @State var isPlaying = false
-    
+
     @State var recorder: Recorder
     @State var speechTranscriber: SpokenWordTranscriber
-    
+
     @State var downloadProgress = 0.0
-    
+
     @State var currentPlaybackTime = 0.0
-    
+
     @State var timer: Timer?
+
+    @EnvironmentObject var recordingsViewModel: RecordingsViewModel
+    @Environment(\.dismiss) private var dismiss
     
     init(story: Binding<Story>) {
         self._story = story
@@ -57,7 +60,7 @@ struct TranscriptView: View {
                 }
                 .disabled(story.isDone)
             }
-            
+
             ToolbarItem {
                 Button {
                     handlePlayButtonTap()
@@ -66,11 +69,17 @@ struct TranscriptView: View {
                 }
                 .disabled(!story.isDone)
             }
-            
+
             ToolbarItem {
                 ProgressView(value: downloadProgress, total: 100)
             }
-            
+
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") {
+                    recordingsViewModel.activeSheet = nil
+                    dismiss()
+                }
+            }
         }
         .onChange(of: isRecording) { oldValue, newValue in
             guard newValue != oldValue else { return }
@@ -84,12 +93,25 @@ struct TranscriptView: View {
                 }
             } else {
                 Task {
-                    try await recorder.stopRecording()
+                    do {
+                        try await recorder.stopRecording()
+                        await MainActor.run {
+                            recordingsViewModel.persist(story)
+                        }
+                    } catch {
+                        print("could not stop recording: \(error)")
+                    }
                 }
             }
         }
         .onChange(of: isPlaying) {
             handlePlayback()
+        }
+        .onChange(of: story.title) { _, _ in
+            recordingsViewModel.persist(story)
+        }
+        .onDisappear {
+            recordingsViewModel.persist(story)
         }
     }
     

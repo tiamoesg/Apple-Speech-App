@@ -31,6 +31,7 @@ class Recorder {
     
     func record() async throws {
         self.story.url.wrappedValue = url
+        self.story.isOffloaded.wrappedValue = false
         guard await isAuthorized() else {
             print("user denied mic permission")
             return
@@ -99,11 +100,21 @@ class Recorder {
         audioEngine.inputNode.removeTap(onBus: 0)
     }
         
-    func playRecording() {
-        guard let file else {
-            return
+    func prepareForPlayback(with url: URL) {
+        do {
+            file = try AVAudioFile(forReading: url)
+        } catch {
+            print("Failed to prepare audio file: \(error)")
         }
-        
+    }
+
+    func playRecording() {
+        if file == nil, let url = story.url.wrappedValue {
+            prepareForPlayback(with: url)
+        }
+
+        guard let file else { return }
+
         playerNode = AVAudioPlayerNode()
         guard let playerNode else {
             return
@@ -128,6 +139,8 @@ class Recorder {
     }
     
     func stopPlaying() {
+        playerNode?.stop()
         audioEngine.stop()
+        playerNode = nil
     }
 }

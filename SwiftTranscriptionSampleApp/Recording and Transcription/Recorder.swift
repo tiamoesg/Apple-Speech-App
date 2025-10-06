@@ -99,11 +99,21 @@ class Recorder {
         audioEngine.inputNode.removeTap(onBus: 0)
     }
         
-    func playRecording() {
-        guard let file else {
-            return
+    func prepareForPlayback(with url: URL) {
+        do {
+            file = try AVAudioFile(forReading: url)
+        } catch {
+            print("Failed to prepare audio file: \(error)")
         }
-        
+    }
+
+    func playRecording() {
+        if file == nil, let url = story.url.wrappedValue {
+            prepareForPlayback(with: url)
+        }
+
+        guard let file else { return }
+
         playerNode = AVAudioPlayerNode()
         guard let playerNode else {
             return
@@ -128,6 +138,8 @@ class Recorder {
     }
     
     func stopPlaying() {
+        playerNode?.stop()
         audioEngine.stop()
+        playerNode = nil
     }
 }

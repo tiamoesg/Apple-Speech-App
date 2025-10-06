@@ -6,8 +6,6 @@ The app's main view.
 */
 
 import SwiftUI
-import SwiftData
-import Speech
 
 struct ContentView: View {
     @State var selectedAudioEntry: AudioEntry?

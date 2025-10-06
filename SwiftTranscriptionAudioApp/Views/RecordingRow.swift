@@ -22,6 +22,8 @@ struct RecordingRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
+                    knowledgeBaseStatusBadge
+
                     if recording.isOffloading {
                         Label("Uploading…", systemImage: "arrow.up.circle")
                             .font(.caption)
@@ -54,5 +56,35 @@ struct RecordingRow: View {
             .accessibilityLabel(recording.isPlaying ? "Stop playback" : "Play recording")
         }
         .padding(.vertical, 8)
+    }
+}
+
+private extension RecordingRow {
+    @ViewBuilder
+    var knowledgeBaseStatusBadge: some View {
+        switch recording.knowledgeBaseSyncStatus {
+        case .idle:
+            EmptyView()
+        case .pending:
+            statusBadge(text: "Syncing", systemImage: "arrow.triangle.2.circlepath", tint: .blue)
+        case .success:
+            let hasRemotes = !recording.knowledgeBaseRemoteIdentifiers.isEmpty
+            statusBadge(text: hasRemotes ? "Synced" : "Uploaded", systemImage: "checkmark.seal.fill", tint: .green)
+                .help(hasRemotes ? "Remote IDs: \(recording.knowledgeBaseRemoteIdentifiers.joined(separator: ", "))" : "Transcript synced successfully")
+        case .error:
+            statusBadge(text: "Sync Failed", systemImage: "exclamationmark.triangle.fill", tint: .red)
+                .help(recording.knowledgeBaseSyncErrorDescription ?? "The last knowledge base sync attempt failed.")
+        }
+    }
+
+    @ViewBuilder
+    func statusBadge(text: String, systemImage: String, tint: Color) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .foregroundStyle(tint)
+            .background(tint.opacity(0.12), in: Capsule())
+            .labelStyle(.titleAndIcon)
     }
 }

@@ -19,6 +19,7 @@ struct TranscriptView: View {
     @State private var speechTranscriber: SpokenWordTranscriber
 
     @State private var downloadProgress = 0.0
+    @State private var isDownloadingAssets = false
     @State private var currentPlaybackTime = 0.0
     @State private var timer: Timer?
 
@@ -80,7 +81,15 @@ struct TranscriptView: View {
             }
 
             ToolbarItem {
-                ProgressView(value: downloadProgress, total: 100)
+                if isDownloadingAssets {
+                    ProgressView(value: downloadProgress, total: 100) {
+                        Text("Preparing audio")
+                    }
+                    .progressViewStyle(.linear)
+                    .frame(width: 120)
+                    .accessibilityLabel("Downloading speech model")
+                    .accessibilityValue("\(Int(downloadProgress)) percent complete")
+                }
             }
 
             ToolbarItem(placement: .cancellationAction) {
@@ -124,7 +133,23 @@ struct TranscriptView: View {
         .onChange(of: recording.title) { _, _ in
             storyModel.persist(recording)
         }
+        .onAppear {
+            speechTranscriber.onDownloadProgressChange = { progress in
+                Task { @MainActor in
+                    guard let progress else {
+                        downloadProgress = 100
+                        isDownloadingAssets = false
+                        return
+                    }
+
+                    let fraction = max(0, min(progress.fractionCompleted, 1))
+                    downloadProgress = fraction * 100
+                    isDownloadingAssets = true
+                }
+            }
+        }
         .onDisappear {
+            speechTranscriber.onDownloadProgressChange = nil
             storyModel.persist(recording)
         }
     }

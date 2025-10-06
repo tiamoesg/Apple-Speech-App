@@ -68,4 +68,14 @@ struct AuthSession: Codable, Equatable {
                            megaEmail: sanitizedMegaEmail,
                            megaPassword: sanitizedMegaPassword)
     }
+
+    static func make(from credentials: LoginCredentials) throws -> AuthSession {
+        let kb = credentials.knowledgeBase
+        let mega = credentials.mega
+        return try make(userID: kb.userID,
+                        apiKey: kb.apiKey,
+                        baseURL: kb.baseURL,
+                        megaEmail: mega.email,
+                        megaPassword: mega.password)
+    }
 }

@@ -10,21 +10,13 @@ final class AuthenticationViewModel: ObservableObject {
         session = AuthenticationViewModel.loadSessionFromKeychain()
     }
 
-    func login(userID: String,
-               apiKey: String,
-               baseURL: String,
-               megaEmail: String?,
-               megaPassword: String?) async {
+    func login(with credentials: LoginCredentials) async {
         errorMessage = nil
         isProcessing = true
         defer { isProcessing = false }
 
         do {
-            let newSession = try AuthSession.make(userID: userID,
-                                                  apiKey: apiKey,
-                                                  baseURL: baseURL,
-                                                  megaEmail: megaEmail,
-                                                  megaPassword: megaPassword)
+            let newSession = try AuthSession.make(from: credentials)
             let encoder = JSONEncoder()
             let data = try encoder.encode(newSession)
             try KeychainStorage.store(data,

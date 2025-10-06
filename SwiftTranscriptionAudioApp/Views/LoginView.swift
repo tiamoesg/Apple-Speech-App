@@ -2,86 +2,143 @@ import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject private var authViewModel: AuthenticationViewModel
-    @State private var knowledgeBaseURL: String = ""
-    @State private var knowledgeBaseAPIKey: String = ""
-    @State private var knowledgeBaseUserID: String = ""
-    @State private var useMegaStorage = false
-    @State private var megaEmail: String = ""
-    @State private var megaPassword: String = ""
+    @State private var formState = LoginFormState()
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("Knowledge Base"),
-                        footer: Text("Provide the API credentials that allow transcripts to sync to your knowledge base.")) {
-                    TextField("Base URL", text: $knowledgeBaseURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    SecureField("API Key", text: $knowledgeBaseAPIKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    TextField("User ID", text: $knowledgeBaseUserID)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-
-                Section(header: Toggle(isOn: $useMegaStorage.animation()) {
-                    Text("Use MEGA for remote storage")
-                }) {
-                    if useMegaStorage {
-                        TextField("MEGA Email", text: $megaEmail)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-
-                        SecureField("MEGA Password", text: $megaPassword)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    } else {
-                        Text("Audio files remain on-device when MEGA is disabled.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let errorMessage = authViewModel.errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                    }
-                }
+                KnowledgeBaseSection(form: $formState)
+                MegaStorageSection(form: $formState)
+                ErrorSection(message: authViewModel.errorMessage)
             }
             .navigationTitle("Sign In")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: signIn) {
-                        if authViewModel.isProcessing {
-                            ProgressView()
-                        } else {
-                            Text("Continue")
-                        }
-                    }
-                    .disabled(authViewModel.isProcessing)
-                }
-            }
+            .toolbar { toolbarContent }
         }
-        .onAppear {
-            if knowledgeBaseURL.isEmpty {
-                knowledgeBaseURL = authViewModel.defaultKnowledgeBaseURL()
-            }
-        }
+        .onAppear(perform: populateDefaults)
+    }
+
+    private func populateDefaults() {
+        formState.applyDefaultsIfNeeded(session: authViewModel.session,
+                                        defaultBaseURL: authViewModel.defaultKnowledgeBaseURL())
     }
 
     private func signIn() {
+        let credentials = formState.makeCredentials()
         Task {
-            await authViewModel.login(userID: knowledgeBaseUserID,
-                                      apiKey: knowledgeBaseAPIKey,
-                                      baseURL: knowledgeBaseURL,
-                                      megaEmail: useMegaStorage ? megaEmail : nil,
-                                      megaPassword: useMegaStorage ? megaPassword : nil)
+            await authViewModel.login(with: credentials)
         }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button(action: signIn) {
+                if authViewModel.isProcessing {
+                    ProgressView()
+                } else {
+                    Text("Continue")
+                }
+            }
+            .disabled(authViewModel.isProcessing)
+        }
+    }
+}
+
+private struct KnowledgeBaseSection: View {
+    @Binding var form: LoginFormState
+
+    var body: some View {
+        Section {
+            TextField("Base URL", text: $form.knowledgeBaseURL)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+            SecureField("API Key", text: $form.knowledgeBaseAPIKey)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+            TextField("User ID", text: $form.knowledgeBaseUserID)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        } header: {
+            Text("Knowledge Base")
+        } footer: {
+            Text("Provide the API credentials that allow transcripts to sync to your knowledge base.")
+        }
+    }
+}
+
+private struct MegaStorageSection: View {
+    @Binding var form: LoginFormState
+
+    var body: some View {
+        Section {
+            Toggle("Use MEGA for remote storage", isOn: $form.useMegaStorage.animation())
+
+            if form.useMegaStorage {
+                TextField("MEGA Email", text: $form.megaEmail)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                SecureField("MEGA Password", text: $form.megaPassword)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } else {
+                Text("Audio files remain on-device when MEGA is disabled.")
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Remote Storage")
+        }
+    }
+}
+
+private struct ErrorSection: View {
+    let message: String?
+
+    var body: some View {
+        if let message {
+            Section {
+                Text(message)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+}
+
+private struct LoginFormState {
+    var knowledgeBaseURL: String = ""
+    var knowledgeBaseAPIKey: String = ""
+    var knowledgeBaseUserID: String = ""
+
+    var useMegaStorage: Bool = false
+    var megaEmail: String = ""
+    var megaPassword: String = ""
+
+    mutating func applyDefaultsIfNeeded(session: AuthSession?, defaultBaseURL: String) {
+        if let session {
+            if knowledgeBaseURL.isEmpty { knowledgeBaseURL = session.knowledgeBaseBaseURLString }
+            if knowledgeBaseAPIKey.isEmpty { knowledgeBaseAPIKey = session.knowledgeBaseAPIKey }
+            if knowledgeBaseUserID.isEmpty { knowledgeBaseUserID = session.knowledgeBaseUserID }
+
+            if let email = session.megaEmail, let password = session.megaPassword {
+                useMegaStorage = true
+                if megaEmail.isEmpty { megaEmail = email }
+                if megaPassword.isEmpty { megaPassword = password }
+            }
+        } else if knowledgeBaseURL.isEmpty {
+            knowledgeBaseURL = defaultBaseURL
+        }
+    }
+
+    func makeCredentials() -> LoginCredentials {
+        LoginCredentials(knowledgeBaseURL: knowledgeBaseURL,
+                         apiKey: knowledgeBaseAPIKey,
+                         userID: knowledgeBaseUserID,
+                         megaEmail: useMegaStorage ? megaEmail : nil,
+                         megaPassword: useMegaStorage ? megaPassword : nil)
     }
 }
 

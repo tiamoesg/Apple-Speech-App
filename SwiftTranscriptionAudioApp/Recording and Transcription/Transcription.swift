@@ -27,6 +27,8 @@ final class SpokenWordTranscriber {
     
     var converter = BufferConverter()
     var downloadProgress: Progress?
+    var onDownloadProgressChange: ((Progress?) -> Void)?
+    private var downloadProgressObservation: NSKeyValueObservation?
     
     var recording: Binding<Recording>
     
@@ -220,7 +222,21 @@ extension SpokenWordTranscriber {
 
     func downloadIfNeeded(for module: SpeechTranscriber) async throws {
         if let downloader = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
-            self.downloadProgress = downloader.progress
+            downloadProgress = downloader.progress
+            notifyDownloadProgressChange(downloadProgress)
+
+            downloadProgressObservation = downloader.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] progress, _ in
+                guard let self else { return }
+                self.notifyDownloadProgressChange(progress)
+            }
+
+            defer {
+                downloadProgressObservation?.invalidate()
+                downloadProgressObservation = nil
+                downloadProgress = nil
+                notifyDownloadProgressChange(nil)
+            }
+
             try await downloader.downloadAndInstall()
         }
     }
@@ -229,6 +245,14 @@ extension SpokenWordTranscriber {
         let reserved = await AssetInventory.reservedLocales
         for locale in reserved {
             await AssetInventory.release(reservedLocale: locale)
+        }
+    }
+}
+
+extension SpokenWordTranscriber {
+    private func notifyDownloadProgressChange(_ progress: Progress?) {
+        Task { @MainActor in
+            self.onDownloadProgressChange?(progress)
         }
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct StoryPersistence {
+struct AudioEntryPersistence {
     private enum Constants {
         static let storeFileName = "recordings.json"
         static let recordingsDirectoryName = "Recordings"
@@ -19,23 +19,23 @@ struct StoryPersistence {
         }
     }
 
-    func load() -> [Story] {
+    func load() -> [AudioEntry] {
         guard let data = try? Data(contentsOf: storeURL) else { return [] }
 
         do {
-            let persisted = try JSONDecoder().decode([PersistedStory].self, from: data)
-            return persisted.compactMap { $0.makeStory(baseDirectory: recordingsDirectoryURL) }
+            let persisted = try JSONDecoder().decode([PersistedAudioEntry].self, from: data)
+            return persisted.compactMap { $0.makeAudioEntry(baseDirectory: recordingsDirectoryURL) }
         } catch {
             print("Failed to load recordings: \(error)")
             return []
         }
     }
 
-    func save(_ stories: [Story]) {
+    func save(_ audioEntries: [AudioEntry]) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
 
-        let persisted = stories.map { PersistedStory(story: $0, baseDirectory: recordingsDirectoryURL) }
+        let persisted = audioEntries.map { PersistedAudioEntry(audioEntry: $0, baseDirectory: recordingsDirectoryURL) }
 
         do {
             let data = try encoder.encode(persisted)
@@ -45,9 +45,9 @@ struct StoryPersistence {
         }
     }
 
-    func persistAudio(for story: Story) {
-        guard let url = story.url else { return }
-        let destination = audioURL(for: story.id)
+    func persistAudio(for audioEntry: AudioEntry) {
+        guard let url = audioEntry.url else { return }
+        let destination = audioURL(for: audioEntry.id)
         let fileManager = FileManager.default
 
         do {
@@ -56,15 +56,15 @@ struct StoryPersistence {
             }
             if url != destination {
                 try fileManager.moveItem(at: url, to: destination)
-                story.url = destination
+                audioEntry.url = destination
             }
         } catch {
             print("Failed to persist audio file: \(error)")
         }
     }
 
-    func deleteAudio(for story: Story) {
-        guard let url = story.url else { return }
+    func deleteAudio(for audioEntry: AudioEntry) {
+        guard let url = audioEntry.url else { return }
         do {
             if FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.removeItem(at: url)
@@ -79,7 +79,7 @@ struct StoryPersistence {
     }
 }
 
-private struct PersistedStory: Codable {
+private struct PersistedAudioEntry: Codable {
     var id: UUID
     var title: String
     var textData: Data
@@ -88,26 +88,26 @@ private struct PersistedStory: Codable {
     var createdAt: Date
     var isOffloaded: Bool
 
-    init(story: Story, baseDirectory: URL) {
-        self.id = story.id
-        self.title = story.title
-        let nsAttributed = NSAttributedString(story.text)
+    init(audioEntry: AudioEntry, baseDirectory: URL) {
+        self.id = audioEntry.id
+        self.title = audioEntry.title
+        let nsAttributed = NSAttributedString(audioEntry.text)
         self.textData = (try? NSKeyedArchiver.archivedData(withRootObject: nsAttributed, requiringSecureCoding: true)) ?? Data()
-        self.audioFileName = story.url?.lastPathComponent
-        self.isDone = story.isDone
-        self.createdAt = story.createdAt
-        self.isOffloaded = story.isOffloaded
+        self.audioFileName = audioEntry.url?.lastPathComponent
+        self.isDone = audioEntry.isDone
+        self.createdAt = audioEntry.createdAt
+        self.isOffloaded = audioEntry.isOffloaded
     }
 
-    func makeStory(baseDirectory: URL) -> Story? {
+    func makeAudioEntry(baseDirectory: URL) -> AudioEntry? {
         guard let nsAttributed = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSAttributedString.self, from: textData) else { return nil }
-        let story = Story(id: id,
-                          title: title,
-                          text: AttributedString(nsAttributed),
-                          url: audioFileName.map { baseDirectory.appendingPathComponent($0) },
-                          isDone: isDone,
-                          createdAt: createdAt,
-                          isOffloaded: isOffloaded)
-        return story
+        let audioEntry = AudioEntry(id: id,
+                                     title: title,
+                                     text: AttributedString(nsAttributed),
+                                     url: audioFileName.map { baseDirectory.appendingPathComponent($0) },
+                                     isDone: isDone,
+                                     createdAt: createdAt,
+                                     isOffloaded: isOffloaded)
+        return audioEntry
     }
 }

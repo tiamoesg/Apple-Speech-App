@@ -47,12 +47,15 @@ final class AuthenticationViewModel: ObservableObject {
     }
 
     private static func loadSessionFromKeychain() -> AuthSession? {
-        guard let storedData = try? KeychainStorage.load(service: AuthSession.keychainService,
-                                                         account: AuthSession.keychainAccount),
-              let data = storedData else {
+        do {
+            guard let data = try KeychainStorage.load(service: AuthSession.keychainService,
+                                                     account: AuthSession.keychainAccount) else {
+                return nil
+            }
+
+            return try JSONDecoder().decode(AuthSession.self, from: data)
+        } catch {
             return nil
         }
-
-        return try? JSONDecoder().decode(AuthSession.self, from: data)
     }
 }

@@ -16,6 +16,7 @@ final class Recording: Identifiable, Codable {
         case duration
         case fileSize
         case megaNodeHandle
+        case metadata
     }
 
     let id: UUID
@@ -29,8 +30,53 @@ final class Recording: Identifiable, Codable {
     var megaNodeHandle: UInt64?
     var duration: TimeInterval
     var fileSize: Int64
+    var metadata: Metadata
     var isPlaying: Bool = false
     var isOffloading: Bool = false
+
+    struct Metadata: Codable, Sendable {
+        var knowledgeBaseSync: KnowledgeBaseSync
+
+        init(knowledgeBaseSync: KnowledgeBaseSync = KnowledgeBaseSync()) {
+            self.knowledgeBaseSync = knowledgeBaseSync
+        }
+
+        func updatingKnowledgeBaseSync(_ update: (inout KnowledgeBaseSync) -> Void) -> Metadata {
+            var copy = self
+            update(&copy.knowledgeBaseSync)
+            return copy
+        }
+    }
+
+    struct KnowledgeBaseSync: Codable, Sendable {
+        enum Status: String, Codable, Sendable {
+            case idle
+            case pending
+            case success
+            case error
+        }
+
+        var status: Status
+        var remoteIdentifiers: [String]
+        var lastErrorMessage: String?
+        var lastSyncedAt: Date?
+        var lastAttemptedAt: Date?
+        var lastKnownRemoteStatus: String?
+
+        init(status: Status = .idle,
+             remoteIdentifiers: [String] = [],
+             lastErrorMessage: String? = nil,
+             lastSyncedAt: Date? = nil,
+             lastAttemptedAt: Date? = nil,
+             lastKnownRemoteStatus: String? = nil) {
+            self.status = status
+            self.remoteIdentifiers = remoteIdentifiers
+            self.lastErrorMessage = lastErrorMessage
+            self.lastSyncedAt = lastSyncedAt
+            self.lastAttemptedAt = lastAttemptedAt
+            self.lastKnownRemoteStatus = lastKnownRemoteStatus
+        }
+    }
 
     init(id: UUID = UUID(),
          title: String,
@@ -42,7 +88,8 @@ final class Recording: Identifiable, Codable {
          isOffloaded: Bool = false,
          megaNodeHandle: UInt64? = nil,
          duration: TimeInterval = 0,
-         fileSize: Int64 = 0) {
+         fileSize: Int64 = 0,
+         metadata: Metadata = Metadata()) {
         self.id = id
         self.title = title
         self.transcript = transcript
@@ -54,6 +101,7 @@ final class Recording: Identifiable, Codable {
         self.megaNodeHandle = megaNodeHandle
         self.duration = duration
         self.fileSize = fileSize
+        self.metadata = metadata
     }
 
     required init(from decoder: Decoder) throws {
@@ -76,6 +124,7 @@ final class Recording: Identifiable, Codable {
         megaNodeHandle = try container.decodeIfPresent(UInt64.self, forKey: .megaNodeHandle)
         duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0
         fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize) ?? 0
+        metadata = try container.decodeIfPresent(Metadata.self, forKey: .metadata) ?? Metadata()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -93,6 +142,7 @@ final class Recording: Identifiable, Codable {
         try container.encodeIfPresent(megaNodeHandle, forKey: .megaNodeHandle)
         try container.encode(duration, forKey: .duration)
         try container.encode(fileSize, forKey: .fileSize)
+        try container.encode(metadata, forKey: .metadata)
     }
 
     func suggestedTitle() async throws -> String? {
@@ -105,7 +155,10 @@ final class Recording: Identifiable, Codable {
 
 extension Recording {
     static func blank() -> Recording {
-        Recording(title: "New Recording", transcript: AttributedString(""), createdAt: Date(), updatedAt: Date())
+        Recording(title: "New Recording",
+                  transcript: AttributedString(""),
+                  createdAt: Date(),
+                  updatedAt: Date())
     }
 
     func transcriptSplitBySentences() -> AttributedString {
@@ -179,5 +232,21 @@ extension Recording {
 
     var isPlayable: Bool {
         (fileURL != nil) || canStreamRemotely
+    }
+
+    var knowledgeBaseSyncStatus: KnowledgeBaseSync.Status {
+        metadata.knowledgeBaseSync.status
+    }
+
+    var knowledgeBaseSyncErrorDescription: String? {
+        metadata.knowledgeBaseSync.lastErrorMessage
+    }
+
+    var knowledgeBaseRemoteIdentifiers: [String] {
+        metadata.knowledgeBaseSync.remoteIdentifiers
+    }
+
+    var isKnowledgeBaseSyncPending: Bool {
+        metadata.knowledgeBaseSync.status == .pending
     }
 }

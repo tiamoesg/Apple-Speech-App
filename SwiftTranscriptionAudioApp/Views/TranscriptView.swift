@@ -28,7 +28,12 @@ struct TranscriptView: View {
     init(recording: Binding<Recording>, storyModel: StoryModel) {
         self._recording = recording
         self.storyModel = storyModel
-        let transcriber = SpokenWordTranscriber(recording: recording)
+        let transcriber = SpokenWordTranscriber(recording: recording,
+                                                knowledgeBaseService: storyModel.knowledgeBaseService)
+        transcriber.onMetadataChange = { [weak storyModel] updatedRecording in
+            guard let storyModel else { return }
+            storyModel.persist(updatedRecording)
+        }
         let destination = storyModel.destinationURL(for: recording.wrappedValue)
         let recorder = Recorder(transcriber: transcriber,
                                 recording: recording,

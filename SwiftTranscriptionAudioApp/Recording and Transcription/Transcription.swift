@@ -16,6 +16,9 @@ final class SpokenWordTranscriber {
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var recognizerTask: Task<(), Error>?
+    private let knowledgeBaseService: KnowledgeBaseService?
+    private let shouldSyncWithKnowledgeBase: Bool
+    var onMetadataChange: ((Recording) -> Void)?
     
     static let magenta = Color(red: 0.54, green: 0.02, blue: 0.6).opacity(0.8) // #e81cff
     
@@ -32,8 +35,12 @@ final class SpokenWordTranscriber {
     
     static let locale = Locale(components: .init(languageCode: .english, script: nil, languageRegion: .unitedStates))
     
-    init(recording: Binding<Recording>) {
+    init(recording: Binding<Recording>,
+         knowledgeBaseService: KnowledgeBaseService? = nil,
+         shouldSyncWithKnowledgeBase: Bool = true) {
         self.recording = recording
+        self.knowledgeBaseService = knowledgeBaseService
+        self.shouldSyncWithKnowledgeBase = shouldSyncWithKnowledgeBase
     }
     
     func setUpTranscriber() async throws {
@@ -83,6 +90,90 @@ final class SpokenWordTranscriber {
     
     func updateRecording(withFinal str: AttributedString) {
         recording.transcript.wrappedValue.append(str)
+        guard shouldSyncWithKnowledgeBase, knowledgeBaseService != nil else { return }
+        enqueueKnowledgeBaseUpload(forFinalSegment: str)
+    }
+
+    private func enqueueKnowledgeBaseUpload(forFinalSegment segment: AttributedString) {
+        let segmentText = String(segment.characters)
+        Task { [weak self] in
+            guard let self else { return }
+            await self.syncKnowledgeBase(finalSegmentText: segmentText)
+        }
+    }
+
+    @MainActor
+    private func syncKnowledgeBase(finalSegmentText: String) async {
+        guard let knowledgeBaseService else { return }
+
+        let trimmedSegment = finalSegmentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var metadata = recording.wrappedValue.metadata.updatingKnowledgeBaseSync { sync in
+            sync.status = .pending
+            sync.lastAttemptedAt = Date()
+            sync.lastErrorMessage = nil
+        }
+
+        recording.wrappedValue.metadata = metadata
+        recording.wrappedValue.updatedAt = Date()
+        onMetadataChange?(recording.wrappedValue)
+
+        let appendedSegment = trimmedSegment.isEmpty ? nil : finalSegmentText
+        let transcriptText = String(recording.wrappedValue.transcript.characters)
+
+        let metadataPayload = KnowledgeBaseService.TranscriptSubmission.MetadataPayload(
+            recordingTitle: recording.wrappedValue.title,
+            recordingUpdatedAt: recording.wrappedValue.updatedAt,
+            appendedSegment: appendedSegment,
+            knowledgeBaseStatus: recording.wrappedValue.metadata.knowledgeBaseSync.status.rawValue,
+            knowledgeBaseIdentifiers: recording.wrappedValue.metadata.knowledgeBaseSync.remoteIdentifiers,
+            knowledgeBaseLastSyncedAt: recording.wrappedValue.metadata.knowledgeBaseSync.lastSyncedAt,
+            knowledgeBaseLastAttemptedAt: recording.wrappedValue.metadata.knowledgeBaseSync.lastAttemptedAt,
+            knowledgeBaseLastError: recording.wrappedValue.metadata.knowledgeBaseSync.lastErrorMessage,
+            knowledgeBaseLastKnownRemoteStatus: recording.wrappedValue.metadata.knowledgeBaseSync.lastKnownRemoteStatus,
+            appRecordingID: recording.wrappedValue.id.uuidString,
+            appFileURL: recording.wrappedValue.fileURL?.path
+        )
+
+        let submission = KnowledgeBaseService.TranscriptSubmission(
+            id: recording.wrappedValue.id,
+            userID: nil,
+            fileName: recording.wrappedValue.fileURL?.lastPathComponent ?? "\(recording.wrappedValue.id.uuidString).m4a",
+            transcriptionText: transcriptText,
+            speaker: nil,
+            createdAt: recording.wrappedValue.createdAt,
+            processed: false,
+            metadata: metadataPayload,
+            fileSize: recording.wrappedValue.fileSize,
+            duration: recording.wrappedValue.duration,
+            sourcePath: recording.wrappedValue.fileURL?.path,
+            mp3Path: nil,
+            confidenceScore: nil,
+            languageDetected: nil,
+            tags: []
+        )
+
+        do {
+            let result = try await knowledgeBaseService.submitTranscript(submission)
+            metadata = recording.wrappedValue.metadata.updatingKnowledgeBaseSync { sync in
+                sync.status = .success
+                if !result.identifiers.isEmpty {
+                    sync.remoteIdentifiers = result.identifiers
+                }
+                sync.lastSyncedAt = Date()
+                sync.lastKnownRemoteStatus = result.status ?? sync.lastKnownRemoteStatus
+                sync.lastErrorMessage = nil
+            }
+            recording.wrappedValue.metadata = metadata
+        } catch {
+            metadata = recording.wrappedValue.metadata.updatingKnowledgeBaseSync { sync in
+                sync.status = .error
+                sync.lastErrorMessage = error.localizedDescription
+            }
+            recording.wrappedValue.metadata = metadata
+        }
+
+        recording.wrappedValue.updatedAt = Date()
+        onMetadataChange?(recording.wrappedValue)
     }
     
     func streamAudioToTranscriber(_ buffer: AVAudioPCMBuffer) async throws {

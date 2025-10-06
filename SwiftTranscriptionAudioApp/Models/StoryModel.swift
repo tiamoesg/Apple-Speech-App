@@ -9,6 +9,7 @@ final class StoryModel: ObservableObject {
 
     private let store: RecordingStore
     private let megaService: MegaStorageService?
+    let knowledgeBaseService: KnowledgeBaseService?
     private var offloadTasks: [UUID: Task<Void, Never>] = [:]
     private var playbackRecorder: Recorder?
     private var playbackTranscriber: SpokenWordTranscriber?
@@ -18,9 +19,11 @@ final class StoryModel: ObservableObject {
     private(set) var currentlyPlayingRecordingID: UUID?
 
     init(store: RecordingStore = RecordingStore(),
-         megaService: MegaStorageService? = MegaStorageService.makeDefault()) {
+         megaService: MegaStorageService? = MegaStorageService.makeDefault(),
+         knowledgeBaseService: KnowledgeBaseService? = KnowledgeBaseService.makeDefault()) {
         self.store = store
         self.megaService = megaService
+        self.knowledgeBaseService = knowledgeBaseService
         loadPersistedRecordings()
     }
 
@@ -170,7 +173,9 @@ final class StoryModel: ObservableObject {
         guard let url = recording.fileURL, FileManager.default.fileExists(atPath: url.path) else { return }
 
         guard let binding = binding(for: recording) else { return }
-        let transcriber = SpokenWordTranscriber(recording: binding)
+        let transcriber = SpokenWordTranscriber(recording: binding,
+                                                knowledgeBaseService: knowledgeBaseService,
+                                                shouldSyncWithKnowledgeBase: false)
         let destination = recording.fileURL ?? destinationURL(for: recording)
         let recorder = Recorder(transcriber: transcriber,
                                 recording: binding,

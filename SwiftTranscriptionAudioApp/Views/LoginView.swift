@@ -50,16 +50,22 @@ private struct KnowledgeBaseSection: View {
     var body: some View {
         Section {
             TextField("Base URL", text: $form.knowledgeBaseURL)
+#if canImport(UIKit)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
+#endif
                 .autocorrectionDisabled()
 
             SecureField("API Key", text: $form.knowledgeBaseAPIKey)
+#if canImport(UIKit)
                 .textInputAutocapitalization(.never)
+#endif
                 .autocorrectionDisabled()
 
             TextField("User ID", text: $form.knowledgeBaseUserID)
+#if canImport(UIKit)
                 .textInputAutocapitalization(.never)
+#endif
                 .autocorrectionDisabled()
         } header: {
             Text("Knowledge Base")
@@ -78,12 +84,16 @@ private struct MegaStorageSection: View {
 
             if form.useMegaStorage {
                 TextField("MEGA Email", text: $form.megaEmail)
+#if canImport(UIKit)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
+#endif
                     .autocorrectionDisabled()
 
                 SecureField("MEGA Password", text: $form.megaPassword)
+#if canImport(UIKit)
                     .textInputAutocapitalization(.never)
+#endif
                     .autocorrectionDisabled()
             } else {
                 Text("Audio files remain on-device when MEGA is disabled.")

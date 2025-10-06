@@ -10,41 +10,41 @@ import SwiftData
 import Speech
 
 struct ContentView: View {
-    @State var selection: Story?
-    @State var currentStory: Story = Story.blank()
+    @State var selectedAudioEntry: AudioEntry?
+    @State var activeAudioEntry: AudioEntry = AudioEntry.blankAudioEntry()
     
     var body: some View {
         NavigationSplitView {
-            List(stories, selection: $selection) { story in
-                NavigationLink(value: story) {
-                    Text(story.title)
+            List(audioEntries, selection: $selectedAudioEntry) { audioEntry in
+                NavigationLink(value: audioEntry) {
+                    Text(audioEntry.title)
                 }
             }
-            
-            .navigationTitle("Stories")
-            
+
+            .navigationTitle("AUDIO Sessions")
+
             .toolbar {
                 ToolbarItem {
                     Button {
-                        stories.append(Story.blank())
+                        audioEntries.append(AudioEntry.blankAudioEntry())
                     } label: {
-                        Label("Add Item", systemImage: "plus")
+                        Label("New AUDIO", systemImage: "plus")
                     }
                 }
             }
         } detail: {
-            if selection != nil {
-                TranscriptView(story: $currentStory)
+            if selectedAudioEntry != nil {
+                TranscriptView(audioEntry: $activeAudioEntry)
             } else {
                 Text("Select an item")
             }
         }
-        .onChange(of: selection) {
-            if let selection {
-                currentStory = selection
+        .onChange(of: selectedAudioEntry) {
+            if let selectedAudioEntry {
+                activeAudioEntry = selectedAudioEntry
             }
         }
     }
-    
-    @State var stories: [Story] = []
+
+    @State var audioEntries: [AudioEntry] = []
 }

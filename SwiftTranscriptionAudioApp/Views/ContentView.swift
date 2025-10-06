@@ -8,41 +8,30 @@ The app's main view.
 import SwiftUI
 
 struct ContentView: View {
-    @State var selectedAudioEntry: AudioEntry?
-    @State var activeAudioEntry: AudioEntry = AudioEntry.blankAudioEntry()
-    
+    @StateObject private var storyModel = StoryModel()
+
     var body: some View {
-        NavigationSplitView {
-            List(audioEntries, selection: $selectedAudioEntry) { audioEntry in
-                NavigationLink(value: audioEntry) {
-                    Text(audioEntry.title)
-                }
-            }
-
-            .navigationTitle("AUDIO Sessions")
-
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        audioEntries.append(AudioEntry.blankAudioEntry())
-                    } label: {
-                        Label("New AUDIO", systemImage: "plus")
+        NavigationStack {
+            RecordingListView(viewModel: storyModel)
+                .navigationTitle("Recordings")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            let recording = storyModel.createRecording()
+                            storyModel.activeRecording = recording
+                        } label: {
+                            Label("New Recording", systemImage: "plus")
+                        }
                     }
                 }
-            }
-        } detail: {
-            if selectedAudioEntry != nil {
-                TranscriptView(audioEntry: $activeAudioEntry)
-            } else {
-                Text("Select an item")
-            }
         }
-        .onChange(of: selectedAudioEntry) {
-            if let selectedAudioEntry {
-                activeAudioEntry = selectedAudioEntry
+        .sheet(item: $storyModel.activeRecording) { recording in
+            if let binding = storyModel.binding(for: recording) {
+                TranscriptView(recording: binding, storyModel: storyModel)
+            } else {
+                Text("Unable to load recording")
+                    .padding()
             }
         }
     }
-
-    @State var audioEntries: [AudioEntry] = []
 }

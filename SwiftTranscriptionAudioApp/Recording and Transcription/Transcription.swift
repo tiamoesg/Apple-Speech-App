@@ -25,15 +25,15 @@ final class SpokenWordTranscriber {
     var converter = BufferConverter()
     var downloadProgress: Progress?
     
-    var audioEntry: Binding<AudioEntry>
+    var recording: Binding<Recording>
     
     var volatileTranscript: AttributedString = ""
     var finalizedTranscript: AttributedString = ""
     
     static let locale = Locale(components: .init(languageCode: .english, script: nil, languageRegion: .unitedStates))
     
-    init(audioEntry: Binding<AudioEntry>) {
-        self.audioEntry = audioEntry
+    init(recording: Binding<Recording>) {
+        self.recording = recording
     }
     
     func setUpTranscriber() async throws {
@@ -67,7 +67,7 @@ final class SpokenWordTranscriber {
                     if result.isFinal {
                         finalizedTranscript += text
                         volatileTranscript = ""
-                        updateAudioEntryWithNewText(withFinal: text)
+                        updateRecording(withFinal: text)
                     } else {
                         volatileTranscript = text
                         volatileTranscript.foregroundColor = .purple.opacity(0.4)
@@ -81,8 +81,8 @@ final class SpokenWordTranscriber {
         try await analyzer?.start(inputSequence: inputSequence)
     }
     
-    func updateAudioEntryWithNewText(withFinal str: AttributedString) {
-        audioEntry.text.wrappedValue.append(str)
+    func updateRecording(withFinal str: AttributedString) {
+        recording.transcript.wrappedValue.append(str)
     }
     
     func streamAudioToTranscriber(_ buffer: AVAudioPCMBuffer) async throws {

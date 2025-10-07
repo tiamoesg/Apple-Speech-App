@@ -55,6 +55,8 @@ class Recorder {
 
     func stopRecording() async throws {
         audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        file = nil
         recording.isComplete.wrappedValue = true
 
         try await transcriber.finishTranscribing()

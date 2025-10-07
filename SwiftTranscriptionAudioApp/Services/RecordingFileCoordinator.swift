@@ -4,6 +4,7 @@ struct RecordingFileCoordinator {
     private enum Constants {
         static let storeFileName = "recordings.json"
         static let recordingsDirectoryName = "Recordings"
+        static let recordingFileExtension = "caf"
     }
 
     private let fileManager: FileManager
@@ -22,7 +23,15 @@ struct RecordingFileCoordinator {
     }
 
     func audioURL(for id: UUID) -> URL {
-        recordingsDirectory.appendingPathComponent("\(id.uuidString).m4a")
+        recordingsDirectory.appendingPathComponent(audioFileName(for: id))
+    }
+
+    static func defaultAudioFileName(for id: UUID) -> String {
+        "\(id.uuidString).\(Constants.recordingFileExtension)"
+    }
+
+    private func audioFileName(for id: UUID) -> String {
+        Self.defaultAudioFileName(for: id)
     }
 
     func deleteAudioIfNeeded(at url: URL) {

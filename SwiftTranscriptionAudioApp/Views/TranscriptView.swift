@@ -167,3 +167,84 @@ struct TranscriptView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+private extension TranscriptView {
+    func handlePlayback() {
+        guard !recording.isOffloaded else {
+            return
+        }
+
+        guard recording.fileURL != nil else {
+            return
+        }
+
+        if isPlaying {
+            recorder.playRecording()
+            timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                currentPlaybackTime = recorder.playerNode?.currentTime ?? 0.0
+            }
+        } else {
+            recorder.stopPlaying()
+            currentPlaybackTime = 0.0
+            timer = nil
+        }
+    }
+
+    func handleRecordingButtonTap() {
+        isRecording.toggle()
+    }
+
+    func handlePlayButtonTap() {
+        if recording.isOffloaded {
+            storyModel.togglePlayback(for: recording)
+        } else {
+            isPlaying.toggle()
+        }
+    }
+
+    @ViewBuilder
+    func textScrollView(attributedString: AttributedString) -> some View {
+        ScrollView {
+            VStack(alignment: .leading) {
+                textWithHighlighting(attributedString: attributedString)
+                Spacer()
+            }
+        }
+    }
+
+    func attributedStringWithCurrentValueHighlighted(attributedString: AttributedString) -> AttributedString {
+        var copy = attributedString
+        copy.runs.forEach { run in
+            if shouldBeHighlighted(attributedStringRun: run) {
+                let range = run.range
+                copy[range].backgroundColor = .mint.opacity(0.2)
+            }
+        }
+        return copy
+    }
+
+    func shouldBeHighlighted(attributedStringRun: AttributedString.Runs.Run) -> Bool {
+        guard isPlaying else { return false }
+        let start = attributedStringRun.audioTimeRange?.start.seconds
+        let end = attributedStringRun.audioTimeRange?.end.seconds
+        guard let start, let end else {
+            return false
+        }
+
+        if end < currentPlaybackTime { return false }
+
+        if start < currentPlaybackTime, currentPlaybackTime < end {
+            return true
+        }
+
+        return false
+    }
+
+    @ViewBuilder
+    func textWithHighlighting(attributedString: AttributedString) -> some View {
+        Group {
+            Text(attributedStringWithCurrentValueHighlighted(attributedString: attributedString))
+                .font(.title)
+        }
+    }
+}

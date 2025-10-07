@@ -118,8 +118,10 @@ final class Recording: Identifiable, Codable {
             fileURL = nil
         }
         isComplete = try container.decode(Bool.self, forKey: .isComplete)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
+        let decodedCreatedAt = try container.decode(Date.self, forKey: .createdAt)
+        let decodedUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? decodedCreatedAt
+        createdAt = decodedCreatedAt
+        updatedAt = decodedUpdatedAt
         isOffloaded = try container.decode(Bool.self, forKey: .isOffloaded)
         megaNodeHandle = try container.decodeIfPresent(UInt64.self, forKey: .megaNodeHandle)
         duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0

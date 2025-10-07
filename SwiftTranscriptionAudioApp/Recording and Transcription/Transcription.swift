@@ -139,7 +139,7 @@ final class SpokenWordTranscriber {
         let submission = KnowledgeBaseService.TranscriptSubmission(
             id: recording.wrappedValue.id,
             userID: nil,
-            fileName: recording.wrappedValue.fileURL?.lastPathComponent ?? "\(recording.wrappedValue.id.uuidString).m4a",
+            fileName: recording.wrappedValue.fileURL?.lastPathComponent ?? RecordingFileCoordinator.defaultAudioFileName(for: recording.wrappedValue.id),
             transcriptionText: transcriptText,
             speaker: nil,
             createdAt: recording.wrappedValue.createdAt,
